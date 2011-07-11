@@ -552,9 +552,9 @@ void crosscorrelation(char* filename, double* R, long blocksize, long navg, long
   long i, j, k, nf, iidx, oidx;
   double c0, c1, re, im, norm, R0, R1;
   complex corr;
-  char* buffer;
+  char *buffer, *buffer_p;
 
-  double *in0, *in1;
+  double *in0, *in1, *in0_p, *in1_p;
   fftw_complex *out0, *out1, *out0_p, *out1_p;
   fftw_plan p0, p1;
 
@@ -596,11 +596,13 @@ void crosscorrelation(char* filename, double* R, long blocksize, long navg, long
     for (j=0; j<navg; j++)
     {
       /* Put data into FFT input arrays */
-      for (k=0; k<blocksize; k++)
+      k = blocksize + 1;
+      while (--k)
       {
-        iidx = j*blocksize+2*k;
-        in0[k] = buffer[iidx];
-        in1[k] = buffer[iidx+1];
+        *in0_p = *buffer_p;
+        ++buffer_p; ++in0_p;
+        *in1_p = *buffer_p;
+        ++buffer_p; ++in1_p;
       }
 
       /* Perform FFT */
