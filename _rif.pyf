@@ -1,0 +1,101 @@
+python module _rif
+interface
+    subroutine readdata(filename, data, start, n)
+        intent(c) readdata
+        intent(c)
+
+        integer*2 intent(out) :: data(n)
+
+        character*(*) intent(in) :: filename
+        integer*8 intent(in) :: start
+        integer*8 intent(in) :: n
+    end subroutine readdata
+
+    function nsamples(filename) result(retval)
+        intent(c) nsamples
+        intent(c)
+
+        character*(*) intent(in) :: filename
+        integer*8 retval
+    end function nsamples
+
+    subroutine totalpower_single_channel(filename, P, blocksize, nblocks)
+        intent(c) totalpower_single_channel
+        intent(c)
+
+        double precision intent(out) :: P(nblocks)
+
+        character*(*) intent(in) :: filename
+        integer*8 intent(in) :: blocksize
+        integer*8 intent(in) :: nblocks
+    end subroutine totalpower_single_channel
+    
+    subroutine averagespectrum_single_channel(filename, S, blocksize, navg)
+        intent(c) averagespectrum_single_channel
+        intent(c)
+
+        double precision intent(out) :: S((blocksize/2+1))
+
+        character*(*) intent(in) :: filename
+        integer*8 intent(in) :: blocksize
+        integer*8 intent(in) :: navg
+    end subroutine averagespectrum_single_channel
+    
+    subroutine totalpower(filename, P, blocksize, nblocks)
+        intent(c) totalpower
+        intent(c)
+
+        double precision intent(out) :: P(nblocks*2)
+
+        character*(*) intent(in) :: filename
+        integer*8 intent(in) :: blocksize 
+        integer*8 intent(in) :: nblocks
+    end subroutine totalpower
+
+    subroutine averagespectrum(filename, S, blocksize, navg)
+        intent(c) averagespectrum
+        intent(c)
+
+        double precision intent(out) :: S((blocksize/2+1)*2)
+
+        character*(*) intent(in) :: filename
+        integer*8 intent(in) :: blocksize
+        integer*8 intent(in) :: navg
+    end subroutine averagespectrum
+
+    subroutine dynamicspectrum(filename, S, blocksize, navg, nblocks)
+        intent(c) dynamicspectrum
+        intent(c)
+
+        double precision intent(out) :: S(nblocks*(blocksize/2+1)*2)
+
+        character*(*) intent(in) :: filename
+        integer*8 intent(in) :: blocksize 
+        integer*8 intent(in) :: navg
+        integer*8 intent(in) :: nblocks
+    end subroutine dynamicspectrum
+
+    subroutine crosscorrelation(filename, R, blocksize, navg, nblocks)
+        intent(c) crosscorrelation
+        intent(c)
+
+        double precision intent(out) :: R(nblocks*2)
+
+        character*(*) intent(in) :: filename
+        integer*8 intent(in) :: blocksize 
+        integer*8 intent(in) :: navg
+        integer*8 intent(in) :: nblocks
+    end subroutine crosscorrelation
+    
+    subroutine sumsquared(filename, P, blocksize, nblocks)
+        intent(c) sumsquared
+        intent(c)
+
+        double precision intent(out) :: P(nblocks)
+
+        character*(*) intent(in) :: filename
+        integer*8 intent(in) :: blocksize 
+        integer*8 intent(in) :: nblocks
+    end subroutine sumsquared
+end interface
+end python module _rif
