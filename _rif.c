@@ -549,7 +549,7 @@ void dynamicspectrum(char* filename, double* S, long blocksize, long navg, long 
 void crosscorrelation(char* filename, double* R, long blocksize, long navg, long nblocks)
 {
   long i, j, k, nf, idx;
-  double a0, a1, c0, c1;
+  double a0, a1, c0, c1, re, im;
   complex corr;
   char* buffer;
 
@@ -614,10 +614,11 @@ void crosscorrelation(char* filename, double* R, long blocksize, long navg, long
         out1[k] = out1[k] / nf;
 
         /* Then calculate the factors for the cross correlation */
-        a0 = cabs(out0[k]);
-        a1 = cabs(out1[k]);
-        c0 += a0*a0;
-        c1 += a1*a1;
+        re = creal(out0[k]); im = cimag(out0[k]);
+        c0 += re * re + im * im;
+
+        re = creal(out1[k]); im = cimag(out1[k]);
+        c1 += re * re + im * im;
       }
       c0 = sqrt(c0);
       c1 = sqrt(c1);
