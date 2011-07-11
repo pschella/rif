@@ -633,6 +633,7 @@ void crosscorrelation(char* filename, double* R, long blocksize, long navg, long
         R0 += creal(corr);
         R1 += cimag(corr);
 
+        /* Go to next point in FFT output arrays */
         ++out0_p;
         ++out1_p;
       }
