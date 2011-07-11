@@ -72,12 +72,15 @@ long nsamples(char* filename)
   fp = fopen(filename, "rb");
 
   /* Find end of file */
-  n = fseek(fp, 0, SEEK_END);
+  fseek(fp, 0, SEEK_END);
+  
+  /* Get size */
+  n = ftell(fp) / sizeof(char);
   
   /* Close file */
   close(fp);
   
-  return n / sizeof(char);
+  return n;
 }
 
 /**
