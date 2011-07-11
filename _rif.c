@@ -16,13 +16,11 @@
  *  along with this library. If not, see <http://www.gnu.org/licenses/>.  *
  **************************************************************************/
 
-//#include <io.h>
 #include <stdlib.h>
 #include <math.h>
 #include <complex.h>
 #include <fftw3.h>
 #include <stdio.h>
-//#include <fcntl.h>
 
 /**
  * \brief Read data from RIF binary file.
