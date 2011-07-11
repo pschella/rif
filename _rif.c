@@ -21,6 +21,7 @@
 #include <complex.h>
 #include <fftw3.h>
 #include <stdio.h>
+#include <time.h>
 
 /**
  * \brief Read data from RIF binary file.
@@ -549,6 +550,13 @@ void dynamicspectrum(char* filename, double* S, long blocksize, long navg, long 
  */
 void crosscorrelation(char* filename, double* R, long blocksize, long navg, long nblocks)
 {
+  clock_t s_tot, s_read, s_in, s_fft, s_cross;
+  long t_tot = 0;
+  long t_read = 0;
+  long t_in = 0;
+  long t_fft = 0;
+  long t_cross = 0;
+
   long i, j, k, nf, idx;
   double c0, c1, re, im, norm, R0, R1;
   complex corr;
@@ -580,6 +588,7 @@ void crosscorrelation(char* filename, double* R, long blocksize, long navg, long
   }
 
   /* Loop over output datapoints */
+  s_tot = clock();
   for (i=0; i<nblocks; i++)
   {
     /* Data stored cos, sin, cos, sin ... so we need index to pair */
@@ -590,13 +599,16 @@ void crosscorrelation(char* filename, double* R, long blocksize, long navg, long
     R[idx+1] = 0;
 
     /* Read data into buffer */
+    s_read = clock();
     readdata(filename, buffer, i*blocksize*navg*2, blocksize*navg*2);
+    t_read += clock() - s_read;
 
     /* Loop over blocks to average */
     buffer_p = buffer;
     for (j=0; j<navg; j++)
     {
       /* Put data into FFT input arrays */
+      s_in = clock();
       in0_p = in0; in1_p = in1;
       k = blocksize + 1;
       while (--k)
@@ -606,12 +618,16 @@ void crosscorrelation(char* filename, double* R, long blocksize, long navg, long
         *in1_p = *buffer_p;
         ++buffer_p; ++in1_p;
       }
+      t_in += clock() - s_in;
 
       /* Perform FFT */
+      s_fft = clock();
       fftw_execute(p0);
       fftw_execute(p1);
+      t_fft += clock() - s_fft;
 
       /* Loop over frequencies */
+      s_cross = clock();
       c0 = 0; c1 = 0, R0 = 0; R1 = 0;
       out0_p = out0; out1_p = out1;
 
@@ -645,7 +661,10 @@ void crosscorrelation(char* filename, double* R, long blocksize, long navg, long
 
       R[idx] += R0 / norm;
       R[idx+1] += R1 / norm;
+
+      t_cross += clock() - s_cross;
     }
+    t_tot = clock() - s_tot;
 
     /* Average over time */
     R[idx] /= navg;
@@ -660,6 +679,12 @@ void crosscorrelation(char* filename, double* R, long blocksize, long navg, long
   fftw_free(in1);
   fftw_free(out1);
   free(buffer);
+
+  printf("tot : %ld\n", t_tot);
+  printf("read : %ld = %f percent\n", t_read, (100. * t_read) / t_tot);
+  printf("in : %ld = %f percent\n", t_in, (100. * t_in) / t_tot);
+  printf("fft : %ld = %f percent\n", t_fft, (100. * t_fft) / t_tot);
+  printf("cross : %ld = %f percent\n", t_cross, (100. * t_cross) / t_tot);
 }
 
 /**
