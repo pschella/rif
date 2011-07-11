@@ -549,7 +549,7 @@ void dynamicspectrum(char* filename, double* S, long blocksize, long navg, long 
  */
 void crosscorrelation(char* filename, double* R, long blocksize, long navg, long nblocks)
 {
-  long i, j, k, nf, iidx, oidx;
+  long i, j, k, nf, idx;
   double c0, c1, re, im, norm, R0, R1;
   complex corr;
   char *buffer, *buffer_p;
@@ -583,11 +583,11 @@ void crosscorrelation(char* filename, double* R, long blocksize, long navg, long
   for (i=0; i<nblocks; i++)
   {
     /* Data stored cos, sin, cos, sin ... so we need index to pair */
-    oidx = 2*i;
+    idx = 2*i;
 
     /* Clear output array */
-    R[oidx] = 0;
-    R[oidx+1] = 0;
+    R[idx] = 0;
+    R[idx+1] = 0;
 
     /* Read data into buffer */
     readdata(filename, buffer, i*blocksize*navg*2, blocksize*navg*2);
@@ -640,13 +640,13 @@ void crosscorrelation(char* filename, double* R, long blocksize, long navg, long
       /* Normalize cross correlation */
       norm = sqrt(c0) * sqrt(c1);
 
-      R[oidx] += R0 / norm;
-      R[oidx+1] += R1 / norm;
+      R[idx] += R0 / norm;
+      R[idx+1] += R1 / norm;
     }
 
     /* Average over time */
-    R[oidx] /= navg;
-    R[oidx+1] /= navg;
+    R[idx] /= navg;
+    R[idx+1] /= navg;
   }
 
   /* Free memory */
