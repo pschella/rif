@@ -596,6 +596,7 @@ void crosscorrelation(char* filename, double* R, long blocksize, long navg, long
     for (j=0; j<navg; j++)
     {
       /* Put data into FFT input arrays */
+      in0_p = in0; in1_p = in1;
       k = blocksize + 1;
       while (--k)
       {
