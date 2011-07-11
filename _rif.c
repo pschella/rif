@@ -593,6 +593,7 @@ void crosscorrelation(char* filename, double* R, long blocksize, long navg, long
     readdata(filename, buffer, i*blocksize*navg*2, blocksize*navg*2);
 
     /* Loop over blocks to average */
+    buffer_p = buffer;
     for (j=0; j<navg; j++)
     {
       /* Put data into FFT input arrays */
