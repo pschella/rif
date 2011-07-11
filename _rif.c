@@ -552,7 +552,7 @@ void dynamicspectrum(char* filename, double* S, long blocksize, long navg, long 
 void crosscorrelation(char* filename, double* R, long blocksize, long navg, long nblocks)
 {
   long i, j, k, nf, idx;
-  double a0, a1, c0, c1, re, im;
+  double c0, c1, re, im, norm;
   complex corr;
   char* buffer;
 
@@ -609,7 +609,7 @@ void crosscorrelation(char* filename, double* R, long blocksize, long navg, long
       fftw_execute(p1);
 
       /* Calculate normalization factors */
-      a0 = 0; a1 = 0; c0 = 0; c1 = 0;
+      c0 = 0; c1 = 0;
       for (k=0; k<nf; k++)
       {
         /* First normalize FFT */
@@ -623,13 +623,13 @@ void crosscorrelation(char* filename, double* R, long blocksize, long navg, long
         re = creal(out1[k]); im = cimag(out1[k]);
         c1 += re * re + im * im;
       }
-      c0 = sqrt(c0);
-      c1 = sqrt(c1);
+
+      norm = sqrt(c0) * sqrt(c1);
 
       /* Calculate cross correlation and normalize */
       for (k=0; k<nf; k++)
       {
-        corr = (out0[k] / c0) * (conj(out1[k]) / c1);
+        corr = out0[k] * conj(out1[k]) / norm;
 
         idx = 2*i;
         R[idx] += creal(corr);
