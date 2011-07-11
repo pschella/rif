@@ -551,8 +551,8 @@ void dynamicspectrum(char* filename, double* S, long blocksize, long navg, long 
  */
 void crosscorrelation(char* filename, double* R, long blocksize, long navg, long nblocks)
 {
-  long i, j, k, nf, idx;
-  double c0, c1, re, im, norm;
+  long i, j, k, nf, iidx, oidx;
+  double c0, c1, re, im, norm, R0, R1;
   complex corr;
   char* buffer;
 
@@ -581,15 +581,16 @@ void crosscorrelation(char* filename, double* R, long blocksize, long navg, long
     return;
   }
 
-  /* Clear output array */
-  for (i=0; i<nblocks*2; i++)
-  {
-    R[i] = 0;
-  }
-
   /* Loop over output datapoints */
   for (i=0; i<nblocks; i++)
   {
+    /* Data stored cos, sin, cos, sin ... so we need index to pair */
+    oidx = 2*i;
+
+    /* Clear output array */
+    R[oidx] = 0;
+    R[oidx+1] = 0;
+
     /* Read data into buffer */
     readdata(filename, buffer, i*blocksize*navg*2, blocksize*navg*2);
 
@@ -599,49 +600,47 @@ void crosscorrelation(char* filename, double* R, long blocksize, long navg, long
       /* Put data into FFT input arrays */
       for (k=0; k<blocksize; k++)
       {
-        idx = j*blocksize+2*k;
-        in0[k] = buffer[idx];
-        in1[k] = buffer[idx+1];
+        iidx = j*blocksize+2*k;
+        in0[k] = buffer[iidx];
+        in1[k] = buffer[iidx+1];
       }
 
       /* Perform FFT */
       fftw_execute(p0);
       fftw_execute(p1);
 
-      /* Calculate normalization factors */
-      c0 = 0; c1 = 0;
+      /* Loop over frequencies */
+      c0 = 0; c1 = 0, R0 = 0; R1 = 0;
       for (k=0; k<nf; k++)
       {
         /* First normalize FFT */
         out0[k] = out0[k] / nf;
         out1[k] = out1[k] / nf;
 
-        /* Then calculate the factors for the cross correlation */
+        /* Then calculate normalization factors */
         re = creal(out0[k]); im = cimag(out0[k]);
         c0 += re * re + im * im;
 
         re = creal(out1[k]); im = cimag(out1[k]);
         c1 += re * re + im * im;
+
+        /* Calculate cross correlation */
+        corr = out0[k] * conj(out1[k]);
+
+        R0 += creal(corr);
+        R1 += cimag(corr);
       }
 
+      /* Normalize cross correlation */
       norm = sqrt(c0) * sqrt(c1);
 
-      /* Calculate cross correlation and normalize */
-      for (k=0; k<nf; k++)
-      {
-        corr = out0[k] * conj(out1[k]) / norm;
-
-        idx = 2*i;
-        R[idx] += creal(corr);
-        R[idx+1] += cimag(corr);
-      }
+      R[oidx] += R0 / norm;
+      R[oidx+1] += R1 / norm;
     }
-  }
 
-  /* Average over time */
-  for (i=0; i<nblocks*2; i++)
-  {
-    R[i] = R[i] / navg;
+    /* Average over time */
+    R[oidx] /= navg;
+    R[oidx+1] /= navg;
   }
 
   /* Free memory */
