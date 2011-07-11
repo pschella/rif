@@ -555,7 +555,7 @@ void crosscorrelation(char* filename, double* R, long blocksize, long navg, long
   char* buffer;
 
   double *in0, *in1;
-  fftw_complex *out0, *out1;
+  fftw_complex *out0, *out1, *out0_p, *out1_p;
   fftw_plan p0, p1;
 
   /* Number of frequencies in output */
@@ -609,24 +609,30 @@ void crosscorrelation(char* filename, double* R, long blocksize, long navg, long
 
       /* Loop over frequencies */
       c0 = 0; c1 = 0, R0 = 0; R1 = 0;
-      for (k=0; k<nf; k++)
+      out0_p = out0; out1_p = out1;
+
+      k = nf + 1;
+      while (--k)
       {
         /* First normalize FFT */
-        out0[k] = out0[k] / nf;
-        out1[k] = out1[k] / nf;
+        *out0_p = *out0_p / nf;
+        *out1_p = *out1_p / nf;
 
         /* Then calculate normalization factors */
-        re = creal(out0[k]); im = cimag(out0[k]);
+        re = creal(*out0_p); im = cimag(*out0_p);
         c0 += re * re + im * im;
 
-        re = creal(out1[k]); im = cimag(out1[k]);
+        re = creal(*out1_p); im = cimag(*out1_p);
         c1 += re * re + im * im;
 
         /* Calculate cross correlation */
-        corr = out0[k] * conj(out1[k]);
+        corr = *out0_p * conj(*out1_p);
 
         R0 += creal(corr);
         R1 += cimag(corr);
+
+        ++out0_p;
+        ++out1_p;
       }
 
       /* Normalize cross correlation */
