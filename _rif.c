@@ -664,12 +664,12 @@ void crosscorrelation(char* filename, double* R, long blocksize, long navg, long
 
       t_cross += clock() - s_cross;
     }
-    t_tot = clock() - s_tot;
 
     /* Average over time */
     R[idx] /= navg;
     R[idx+1] /= navg;
   }
+  t_tot = clock() - s_tot;
 
   /* Free memory */
   fftw_destroy_plan(p0);
