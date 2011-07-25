@@ -559,7 +559,7 @@ void crosscorrelation(char* filename, double* R, long blocksize, long navg, long
 
   long i, j, k, nf, idx;
   double c0, c1, re, im, norm, R0, R1;
-  complex corr;
+  complex corr, con;
   char *buffer, *buffer_p;
 
   double *in0, *in1, *in0_p, *in1_p;
@@ -639,14 +639,14 @@ void crosscorrelation(char* filename, double* R, long blocksize, long navg, long
         *out1_p = *out1_p / nf;
 
         /* Then calculate normalization factors */
-        re = creal(*out0_p); im = cimag(*out0_p);
-        c0 += re * re + im * im;
+        con = conj(*out0_p);
+        c0 += *out0_p * con;
 
-        re = creal(*out1_p); im = cimag(*out1_p);
-        c1 += re * re + im * im;
+        con = conj(*out1_p);
+        c1 += *out1_p * con;
 
         /* Calculate cross correlation */
-        corr = *out0_p * conj(*out1_p);
+        corr = *out0_p * con;
 
         R0 += creal(corr);
         R1 += cimag(corr);
