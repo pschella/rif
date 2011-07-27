@@ -301,6 +301,44 @@ def crosscorrelation(filename, dt, blocksize=4096):
 
     return R.reshape((nblocks, 2)).transpose()
 
+def crosscorrelation_parallel(filename, dt, blocksize=4096, nread=1):
+    """Calculate cross correlation.
+
+    This function accepts the following parameters:
+
+    *filename* name of the file to read data from
+    *blocksize* number of samples to user for each FFT
+    *dt* time in seconds to average over (each second = 20e6 samples)
+
+    It returns a two dimensional array with shape=(Ns/(dt*2*20e6))
+    containing the real (e.g. cosine) and imaginary (e.g. sine) parts
+    of the complex normalized cross correlation of the signal of the two
+    channels.
+
+    Example::
+
+        # Import modules
+        import rif
+        import matplotlib.pyplot as plt
+
+        # Calculate the cross correlation of data in "RIF.dat" averaging
+        # over 1s and using a blocksize of 4096 samples for the FFT
+        R = rif.crosscorrelation("RIF.dat", 1.0, 4096)
+
+        plt.plot(R[0]) # Plot the real (e.g. cos) component
+        plt.plot(R[1]) # Plot the imaginary (e.g. sin) component
+
+        plt.show()
+        
+    """
+    Ns = nsamples(filename)
+    navg = int(20e6 * dt / blocksize)
+    nblocks = Ns / (2 * navg * blocksize)
+
+    R = _rif.crosscorrelation_parallel(filename, blocksize, navg, nblocks, nread)
+
+    return R.reshape((nblocks, 2)).transpose()
+
 def frequencies(blocksize=4096):
     """Return frequencies corresponding to blocksize used to calculate FFT.
     """
