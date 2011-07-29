@@ -17,11 +17,11 @@
  **************************************************************************/
 
 #include <stdlib.h>
+#include <string.h>
 #include <math.h>
 #include <complex.h>
 #include <fftw3.h>
 #include <stdio.h>
-#include <time.h>
 #include <omp.h>
 
 /**
@@ -551,13 +551,6 @@ void dynamicspectrum(char* filename, double* S, long blocksize, long navg, long 
  */
 void crosscorrelation(char* filename, double* R, long blocksize, long navg, long nblocks)
 {
-  clock_t s_tot, s_read, s_in, s_fft, s_cross;
-  long t_tot = 0;
-  long t_read = 0;
-  long t_in = 0;
-  long t_fft = 0;
-  long t_cross = 0;
-
   long i, j, k, nf, idx;
   double c0, c1, re, im, norm, R0, R1;
   complex corr, con;
@@ -577,8 +570,8 @@ void crosscorrelation(char* filename, double* R, long blocksize, long navg, long
   out1 = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * nf);
 
   /* Create plan for FFT */
-  p0 = fftw_plan_dft_r2c_1d(blocksize, in0, out0, FFTW_ESTIMATE);
-  p1 = fftw_plan_dft_r2c_1d(blocksize, in1, out1, FFTW_ESTIMATE);
+  p0 = fftw_plan_dft_r2c_1d(blocksize, in0, out0, FFTW_ESTIMATE | FFTW_DESTROY_INPUT);
+  p1 = fftw_plan_dft_r2c_1d(blocksize, in1, out1, FFTW_ESTIMATE | FFTW_DESTROY_INPUT);
 
   /* Allocate memory for buffer */
   buffer = malloc(blocksize*navg*2*sizeof(char));
@@ -589,7 +582,6 @@ void crosscorrelation(char* filename, double* R, long blocksize, long navg, long
   }
 
   /* Loop over output datapoints */
-  s_tot = clock();
   for (i=0; i<nblocks; i++)
   {
     /* Data stored cos, sin, cos, sin ... so we need index to pair */
@@ -600,16 +592,13 @@ void crosscorrelation(char* filename, double* R, long blocksize, long navg, long
     R[idx+1] = 0;
 
     /* Read data into buffer */
-    s_read = clock();
     readdata(filename, buffer, i*blocksize*navg*2, blocksize*navg*2);
-    t_read += clock() - s_read;
 
     /* Loop over blocks to average */
     buffer_p = buffer;
     for (j=0; j<navg; j++)
     {
       /* Put data into FFT input arrays */
-      s_in = clock();
       in0_p = in0; in1_p = in1;
       k = blocksize + 1;
       while (--k)
@@ -619,16 +608,12 @@ void crosscorrelation(char* filename, double* R, long blocksize, long navg, long
         *in1_p = *buffer_p;
         ++buffer_p; ++in1_p;
       }
-      t_in += clock() - s_in;
 
       /* Perform FFT */
-      s_fft = clock();
       fftw_execute(p0);
       fftw_execute(p1);
-      t_fft += clock() - s_fft;
 
       /* Loop over frequencies */
-      s_cross = clock();
       c0 = 0; c1 = 0, R0 = 0; R1 = 0;
       out0_p = out0; out1_p = out1;
 
@@ -662,15 +647,12 @@ void crosscorrelation(char* filename, double* R, long blocksize, long navg, long
 
       R[idx] += R0 / norm;
       R[idx+1] += R1 / norm;
-
-      t_cross += clock() - s_cross;
     }
 
     /* Average over time */
     R[idx] /= navg;
     R[idx+1] /= navg;
   }
-  t_tot = clock() - s_tot;
 
   /* Free memory */
   fftw_destroy_plan(p0);
@@ -680,12 +662,6 @@ void crosscorrelation(char* filename, double* R, long blocksize, long navg, long
   fftw_free(in1);
   fftw_free(out1);
   free(buffer);
-
-  printf("tot : %ld\n", t_tot);
-  printf("read : %ld = %f percent\n", t_read, (100. * t_read) / t_tot);
-  printf("in : %ld = %f percent\n", t_in, (100. * t_in) / t_tot);
-  printf("fft : %ld = %f percent\n", t_fft, (100. * t_fft) / t_tot);
-  printf("cross : %ld = %f percent\n", t_cross, (100. * t_cross) / t_tot);
 }
 
 void crosscorrelation_inner(double *c, double *s, complex *fft0, complex *fft1, long nblocks, int nf)
@@ -693,8 +669,6 @@ void crosscorrelation_inner(double *c, double *s, complex *fft0, complex *fft1, 
   long i, j;
   double c0, c1, R0, R1, norm;
   complex corr, con, *fft0_p, *fft1_p;
-
-  printf("Start cross correlation.\n");
 
   fft0_p = fft0; fft1_p = fft1;
   i = nblocks + 1;
@@ -706,8 +680,6 @@ void crosscorrelation_inner(double *c, double *s, complex *fft0, complex *fft1, 
     while (--j)
     {
       /* First normalize FFT */
-//      printf("channel 0: %.3f %.3f\n", creal(*fft0_p), cimag(*fft0_p));
-//      printf("channel 1: %.3f %.3f\n", creal(*fft1_p), cimag(*fft1_p));
       *fft0_p = *fft0_p / nf;
       *fft1_p = *fft1_p / nf;
 
@@ -735,22 +707,29 @@ void crosscorrelation_inner(double *c, double *s, complex *fft0, complex *fft1, 
     *c += R0 / norm;
     *s += R1 / norm;
   }
-
-  printf("End cross correlation.\n");
 }
 
-void crosscorrelation_parallel(char* filename, double* R, int blocksize, long navg, long nblocks, long nread)
+void crosscorrelation_parallel(char* filename, double* R, int blocksize, long navg, long nblocks, int nread)
 {
   FILE *fp;
-  char *buffer, *buffer_p;
+  char **buffer, *buffer_p;
   int nf, nthreads, th_id;
-  long i, j, start, nsamples;
-  double **in, *in0_p, *in1_p, c, s;
+  long i, j;
+  double **R_internal, **in, *in0_p, *in1_p, c, s;
   fftw_complex **out;
   fftw_plan p;
 
+  /* Number of chunks */
+  const long nchunks = (nblocks * navg) / nread;
+
   /* Number of samples in file */
-  nsamples = nblocks * navg * blocksize * 2;
+  const long nsamples = nblocks * navg * blocksize * 2;
+
+  /* Number of samples per processing chunk */
+  const long samples_per_chunk = nread * blocksize * 2;
+
+  /* Number of samples per processing chunk per channel */
+  const long samples_per_chunk_per_channel = nread * blocksize;
 
   /* Number of frequencies in output */
   nf = blocksize / 2 + 1;
@@ -763,23 +742,6 @@ void crosscorrelation_parallel(char* filename, double* R, int blocksize, long na
     return;
   }
 
-  nthreads = 4;
-
-  /* Allocate memory for buffer */
-  buffer = malloc(nthreads*nread*blocksize*2*sizeof(char));
-
-  /* Allocate memory for FFT */
-  in = malloc(sizeof(double*) * nthreads);
-  out = malloc(sizeof(fftw_complex*) * nthreads);
-  for (i=0; i<nthreads; i++)
-  {
-    in[i] = (double*) fftw_malloc(sizeof(double) * nread * blocksize * 2);
-    out[i] = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * nread * blocksize * 2);
-  }
-
-  /* Create FFTW plan */
-  p = fftw_plan_many_dft_r2c(1, &blocksize, nread*2, in[0], NULL, 1, blocksize, out[0], NULL, 1, nf, FFTW_ESTIMATE);
-
   #pragma omp parallel
   {
     #pragma omp master
@@ -787,39 +749,63 @@ void crosscorrelation_parallel(char* filename, double* R, int blocksize, long na
       nthreads = omp_get_num_threads();
       printf("nthreads: %d\n", nthreads);
     }
+  }
 
-    #pragma omp for ordered private(th_id, j, start, c, s, buffer_p, in0_p, in1_p) schedule(dynamic)
-    for (i=0; i<((2 * nblocks * navg) / nread); i++)
+  /* Allocate memory */
+  buffer = (char**) malloc(sizeof(char*) * nthreads);
+  in = (double**) malloc(sizeof(double*) * nthreads);
+  out = (fftw_complex**) malloc(sizeof(fftw_complex*) * nthreads);
+  R_internal = (double**) malloc(sizeof(double*) * nthreads);
+  for (i=0; i<nthreads; i++)
+  {
+    buffer[i] = (char*) malloc(sizeof(char) * nread * blocksize * 2);
+    in[i] = (double*) fftw_malloc(sizeof(double) * nread * blocksize * 2);
+    out[i] = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * nread * nf * 2);
+    R_internal[i] = (double*) malloc(sizeof(double) * nblocks * 2);
+  }
+
+  /* Zero out array buffers */
+  for (i=0; i<nthreads; i++)
+  {
+    for (j=0; j<nblocks*2; j++)
+    {
+      R_internal[i][j] = 0;
+    }
+  }
+
+  /* Create FFTW plan */
+  p = fftw_plan_many_dft_r2c(1, &blocksize, nread*2, in[0], NULL, 1, blocksize, out[0], NULL, 1, nf, FFTW_ESTIMATE | FFTW_DESTROY_INPUT);
+
+  #pragma omp parallel
+  {
+    #pragma omp for private(th_id, j, c, s, buffer_p, in0_p, in1_p) schedule(dynamic)
+    for (i=0; i<nchunks; i++)
     {
       /* Get thread id */
       th_id = omp_get_thread_num();
 
-      #pragma omp ordered
+      #pragma omp critical
       {
         /* Skip to correct position */
-        start = i * nread * blocksize * 2;
-        fseek(fp, start * sizeof(char), SEEK_SET);
-  
-        printf("reading chunk: %ld by thread: %d of: %d\n", i, th_id, nthreads);
-  
+        fseek(fp, i * samples_per_chunk * sizeof(char), SEEK_SET);
+
         /* Read data */
-        fread(&buffer[th_id * nread * blocksize * 2], sizeof(char), nread * blocksize * 2, fp);
+        fread(buffer[th_id], sizeof(char), samples_per_chunk, fp);
       }
 
       /* Put data into FFTW input array */
-      buffer_p = buffer + (th_id * nread * blocksize * 2); in0_p = in[th_id]; in1_p = in[th_id] + nread * blocksize;
-      for (j=0; j<nread*blocksize; j++)
+      buffer_p = buffer[th_id]; in0_p = in[th_id]; in1_p = in[th_id] + samples_per_chunk_per_channel;
+
+      j = samples_per_chunk_per_channel + 1;
+      while (--j)
       {
         *in0_p = *buffer_p;
-//        printf("channel 0: %d\n", *buffer_p);
         ++in0_p; ++buffer_p;
         *in1_p = *buffer_p;
-//        printf("channel 1: %d\n", *buffer_p);
         ++in1_p; ++buffer_p;
       }
       
       /* Execute FFTW plan */
-      printf("chunk %ld executing fft %d\n", i, th_id);
       fftw_execute_dft_r2c(p, in[th_id], out[th_id]);
 
       /* Calculate cross correlation */
@@ -827,16 +813,37 @@ void crosscorrelation_parallel(char* filename, double* R, int blocksize, long na
       crosscorrelation_inner(&c, &s, out[th_id], out[th_id] + nread * nf, nread, nf);
 
       /* Add cross correlation to correct position in output array */
-      #pragma omp critical
-      {
-        R[(i * nread / navg)] += (c / navg);
-        R[(i * nread / navg) + 1] += (s / navg);
-      }
-
-      printf("%.3f %.3f\n", c, s);
+      R_internal[th_id][2*(i * nread / navg)] += c;
+      R_internal[th_id][2*(i * nread / navg) + 1] += s;
     }
   }
 
+  #pragma omp parallel for private(j)
+  for (i=0; i<2*nblocks; i++)
+  {
+    for (j=0; j<nthreads; j++)
+    {
+      R[i] += R_internal[j][i];
+    }
+
+    R[i] /= navg;
+  }
+
+  /* Reclaim memory */
+  fftw_destroy_plan(p);
+
+  for (i=0; i<nthreads; i++)
+  {
+    free(buffer[i]);
+    fftw_free(in[i]);
+    fftw_free(out[i]);
+  }
+
+  free(buffer);
+  free(in);
+  free(out);
+
+  /* Close file */
   close(fp);
 }
 

@@ -1,4 +1,4 @@
-CFLAGS=""
+CFLAGS="-O3 -ffast-math -fopenmp"
 
 all: _rif
 

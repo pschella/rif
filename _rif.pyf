@@ -97,7 +97,7 @@ interface
         integer intent(in) :: blocksize 
         integer*8 intent(in) :: navg
         integer*8 intent(in) :: nblocks
-        integer*8 intent(in) :: nread
+        integer intent(in) :: nread
     end subroutine crosscorrelation_parallel
     
     subroutine sumsquared(filename, P, blocksize, nblocks)
