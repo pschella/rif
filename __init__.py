@@ -1,6 +1,19 @@
 """This is a Python module for working with data from the Radio Interferometer.
 
 It has two low level functions `nsamples` and `readdata` to read in the raw data and a series of convenience functions to quickly analyse the data and reduce the total data volume before further processing.
+
+RIF data format
+===============
+
+RIF data is stored in a combination of two files:
+
+* A ``.cds`` plain text file with telescope coordinates stored every second and,
+* a ``.dat`` binary file with the telescope data stored as ``A0, B0, A1, B1, ...`` where ``A0`` is sample 0 from channel (telescope) A. The data type is an 8 bit (1 byte) integer (or C-type char).
+
+The routines in the ``rif`` module can be used to read and manipulate this data in Python. Alternatively one can use any programming language to read the data directly using the ``rif`` module code (which itself is written in C) as a reference.
+
+API documentation
+=================
 """
 
 # Import core functionality
