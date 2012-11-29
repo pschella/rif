@@ -684,11 +684,11 @@ void crosscorrelation_inner(double *c, double *s, complex *fft0, complex *fft1, 
       *fft1_p = *fft1_p / nf;
 
       /* Then calculate normalization factors */
-      con = conj(*fft0_p);
-      c0 += *fft0_p * con;
+//      con = conj(*fft0_p);
+//      c0 += *fft0_p * con;
 
       con = conj(*fft1_p);
-      c1 += *fft1_p * con;
+//      c1 += *fft1_p * con;
 
       /* Calculate cross correlation */
       corr = *fft0_p * con;
@@ -702,10 +702,10 @@ void crosscorrelation_inner(double *c, double *s, complex *fft0, complex *fft1, 
     }
 
     /* Normalize cross correlation */
-    norm = sqrt(c0) * sqrt(c1);
+//    norm = (c0 + c1) / 2;//sqrt(c0) * sqrt(c1);
 
-    *c += R0 / norm;
-    *s += R1 / norm;
+    *c += R0; // norm;
+    *s += R1; // norm;
   }
 }
 
@@ -715,9 +715,17 @@ void crosscorrelation_parallel(char* filename, double* R, int blocksize, long na
   char **buffer, *buffer_p;
   int nf, nthreads, th_id;
   long i, j;
+  long ii;
   double **R_internal, **in, *in0_p, *in1_p, c, s;
+  fftw_complex *out0_p, *out1_p;
+  double window[blocksize];
+  fftw_complex mask[blocksize / 2 + 1];
   fftw_complex **out;
   fftw_plan p;
+
+  double wtime;
+  
+  wtime = omp_get_wtime();
 
   /* Number of chunks */
   const long nchunks = (nblocks * navg) / nread;
@@ -778,7 +786,7 @@ void crosscorrelation_parallel(char* filename, double* R, int blocksize, long na
 
   #pragma omp parallel
   {
-    #pragma omp for private(th_id, j, c, s, buffer_p, in0_p, in1_p) schedule(dynamic)
+    #pragma omp for private(th_id, j, c, s, buffer_p, in0_p, in1_p, out0_p, out1_p) schedule(dynamic) 
     for (i=0; i<nchunks; i++)
     {
       /* Get thread id */
@@ -794,6 +802,7 @@ void crosscorrelation_parallel(char* filename, double* R, int blocksize, long na
       }
 
       /* Put data into FFTW input array */
+
       buffer_p = buffer[th_id]; in0_p = in[th_id]; in1_p = in[th_id] + samples_per_chunk_per_channel;
 
       j = samples_per_chunk_per_channel + 1;
@@ -804,7 +813,7 @@ void crosscorrelation_parallel(char* filename, double* R, int blocksize, long na
         *in1_p = *buffer_p;
         ++in1_p; ++buffer_p;
       }
-      
+
       /* Execute FFTW plan */
       fftw_execute_dft_r2c(p, in[th_id], out[th_id]);
 
@@ -845,6 +854,9 @@ void crosscorrelation_parallel(char* filename, double* R, int blocksize, long na
 
   /* Close file */
   close(fp);
+  
+  wtime = omp_get_wtime() - wtime;
+  printf("\nTotal process time is %f\n\n", wtime);
 }
 
 /**
