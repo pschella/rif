@@ -16,13 +16,13 @@
  *  along with this library. If not, see <http://www.gnu.org/licenses/>.  *
  **************************************************************************/
 
+#include <io.h>
 #include <stdlib.h>
-#include <string.h>
 #include <math.h>
 #include <complex.h>
 #include <fftw3.h>
 #include <stdio.h>
-#include <omp.h>
+#include <fcntl.h>
 
 /**
  * \brief Read data from RIF binary file.
@@ -33,7 +33,7 @@
  * \param start number of sample to start reading from
  * \param n number of samples to read
  */
-void readdata(char* filename, char* data, long start, long n)
+void readdata(char* filename, char* data, __int64 start, __int64 n)
 {
   FILE *fp;
 
@@ -46,7 +46,7 @@ void readdata(char* filename, char* data, long start, long n)
   }
 
   /* Skip to correct position */
-  fseek(fp, start * sizeof(char), SEEK_SET);
+  _fseeki64(fp, start * sizeof(char), SEEK_SET);
 
   /* Read data */
   fread(data, sizeof(char), n, fp);
@@ -63,24 +63,21 @@ void readdata(char* filename, char* data, long start, long n)
  * \return number of samples in file (divide by two for number of samples
  *         per channel.
  */
-long nsamples(char* filename)
+__int64 nsamples(char* filename)
 {
-  FILE *fp;
-  long n;
+  int fh;
+  __int64 n;
 
   /* Open file */
-  fp = fopen(filename, "rb");
+  fh = _open( filename, _O_BINARY );
 
   /* Find end of file */
-  fseek(fp, 0, SEEK_END);
-  
-  /* Get size */
-  n = ftell(fp) / sizeof(char);
+  n = _lseeki64(fh, 0, SEEK_END);
   
   /* Close file */
-  close(fp);
+  _close(fh);
   
-  return n;
+  return n / sizeof(char);
 }
 
 /**
@@ -92,10 +89,10 @@ long nsamples(char* filename)
  * \param blocksize number of samples to average for 1 datapoint in output
  * \param nblocks number of points in output
  */
-void totalpower_single_channel(char* filename, double* P, long blocksize, long nblocks)
+void totalpower_single_channel(char* filename, double* P, __int64 blocksize, __int64 nblocks)
 {
-  long i, j;
-  long n;
+  __int64 i, j;
+  __int64 n;
   char *buffer, *b;
   
   FILE *fp;
@@ -156,9 +153,9 @@ void totalpower_single_channel(char* filename, double* P, long blocksize, long n
  *        of transform) for a single spectrum in the output
  * \param nblocks number of points in output
  */
-void averagespectrum_single_channel(char* filename, double* S, long blocksize, long navg)
+void averagespectrum_single_channel(char* filename, double* S, __int64 blocksize, __int64 navg)
 {
-  long i, j, k, nf;
+  __int64 i, j, k, nf;
   char* buffer;
   double *in;
   fftw_complex *out;
@@ -178,8 +175,8 @@ void averagespectrum_single_channel(char* filename, double* S, long blocksize, l
   /* Allocate memory for buffer */
   buffer = malloc(blocksize * sizeof(char));
   
-  printf("size: %ld\n", sizeof(char));
-  printf("size: %ld\n", blocksize);
+  printf("size: %d\n", sizeof(char));
+  printf("size: %I64d\n", blocksize);
   
   if (buffer == NULL)
   {
@@ -249,10 +246,10 @@ void averagespectrum_single_channel(char* filename, double* S, long blocksize, l
  * \param blocksize number of samples to average for 1 datapoint in output
  * \param nblocks number of points in output
  */
-void totalpower(char* filename, double* P, long blocksize, long nblocks)
+void totalpower(char* filename, double* P, __int64 blocksize, __int64 nblocks)
 {
-  long i, j;
-  long n;
+  __int64 i, j;
+  __int64 n;
   double *P0, *P1;
   char *buffer, *b0, *b1;
   FILE *fp;
@@ -278,7 +275,7 @@ void totalpower(char* filename, double* P, long blocksize, long nblocks)
   for (i=nblocks; i!=0; --i)
   {
     /* Feedback */
-    printf("processing block %ld of %ld\n", i, nblocks);
+    printf("processing block %d of %d\n", i, nblocks);
     
     /* Read data into buffer */
     fread(buffer, sizeof(char), n, fp);
@@ -323,9 +320,9 @@ void totalpower(char* filename, double* P, long blocksize, long nblocks)
  *        of transform) for a single spectrum in the output
  * \param nblocks number of points in output
  */
-void averagespectrum(char* filename, double* S, long blocksize, long navg)
+void averagespectrum(char* filename, double* S, __int64 blocksize, __int64 navg)
 {
-  long i, j, k, k0, k1, nf, idx0, idx1, n;
+  __int64 i, j, k, k0, k1, nf, idx0, idx1, n;
   char* buffer;
   double *in0, *in1;
   fftw_complex *out0, *out1;
@@ -433,9 +430,9 @@ void averagespectrum(char* filename, double* S, long blocksize, long navg)
  *        of transform) for a single spectrum in the output
  * \param nblocks number of points in output
  */
-void dynamicspectrum(char* filename, double* S, long blocksize, long navg, long nblocks)
+void dynamicspectrum(char* filename, double* S, __int64 blocksize, __int64 navg, __int64 nblocks)
 {
-  long i, j, k, k0, k1, nf, idx, idx0, idx1, n;
+  __int64 i, j, k, k0, k1, nf, idx, idx0, idx1, n;
   char* buffer;
   double *in0, *in1;
   fftw_complex *out0, *out1;
@@ -549,15 +546,15 @@ void dynamicspectrum(char* filename, double* S, long blocksize, long navg, long 
  * \param navg number of blocks to average
  * \param nblocks number of points in output
  */
-void crosscorrelation(char* filename, double* R, long blocksize, long navg, long nblocks)
+void crosscorrelation(char* filename, double* R, __int64 blocksize, __int64 navg, __int64 nblocks)
 {
-  long i, j, k, nf, idx;
-  double c0, c1, re, im, norm, R0, R1;
-  complex corr, con;
-  char *buffer, *buffer_p;
+  __int64 i, j, k, nf, idx;
+  double a0, a1, c0, c1;
+  complex corr;
+  char* buffer;
 
-  double *in0, *in1, *in0_p, *in1_p;
-  fftw_complex *out0, *out1, *out0_p, *out1_p;
+  double *in0, *in1;
+  fftw_complex *out0, *out1;
   fftw_plan p0, p1;
 
   /* Number of frequencies in output */
@@ -570,8 +567,8 @@ void crosscorrelation(char* filename, double* R, long blocksize, long navg, long
   out1 = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * nf);
 
   /* Create plan for FFT */
-  p0 = fftw_plan_dft_r2c_1d(blocksize, in0, out0, FFTW_ESTIMATE | FFTW_DESTROY_INPUT);
-  p1 = fftw_plan_dft_r2c_1d(blocksize, in1, out1, FFTW_ESTIMATE | FFTW_DESTROY_INPUT);
+  p0 = fftw_plan_dft_r2c_1d(blocksize, in0, out0, FFTW_ESTIMATE);
+  p1 = fftw_plan_dft_r2c_1d(blocksize, in1, out1, FFTW_ESTIMATE);
 
   /* Allocate memory for buffer */
   buffer = malloc(blocksize*navg*2*sizeof(char));
@@ -581,77 +578,66 @@ void crosscorrelation(char* filename, double* R, long blocksize, long navg, long
     return;
   }
 
+  /* Clear output array */
+  for (i=0; i<nblocks*2; i++)
+  {
+    R[i] = 0;
+  }
+
   /* Loop over output datapoints */
   for (i=0; i<nblocks; i++)
   {
-    /* Data stored cos, sin, cos, sin ... so we need index to pair */
-    idx = 2*i;
-
-    /* Clear output array */
-    R[idx] = 0;
-    R[idx+1] = 0;
-
     /* Read data into buffer */
     readdata(filename, buffer, i*blocksize*navg*2, blocksize*navg*2);
 
     /* Loop over blocks to average */
-    buffer_p = buffer;
     for (j=0; j<navg; j++)
     {
       /* Put data into FFT input arrays */
-      in0_p = in0; in1_p = in1;
-      k = blocksize + 1;
-      while (--k)
+      for (k=0; k<blocksize; k++)
       {
-        *in0_p = *buffer_p;
-        ++buffer_p; ++in0_p;
-        *in1_p = *buffer_p;
-        ++buffer_p; ++in1_p;
+        idx = j*blocksize+2*k;
+        in0[k] = buffer[idx];
+        in1[k] = buffer[idx+1];
       }
 
       /* Perform FFT */
       fftw_execute(p0);
       fftw_execute(p1);
 
-      /* Loop over frequencies */
-      c0 = 0; c1 = 0, R0 = 0; R1 = 0;
-      out0_p = out0; out1_p = out1;
-
-      k = nf + 1;
-      while (--k)
+      /* Calculate normalization factors */
+      a0 = 0; a1 = 0; c0 = 0; c1 = 0;
+      for (k=0; k<nf; k++)
       {
         /* First normalize FFT */
-        *out0_p = *out0_p / nf;
-        *out1_p = *out1_p / nf;
+        out0[k] = out0[k] / nf;
+        out1[k] = out1[k] / nf;
 
-        /* Then calculate normalization factors */
-        con = conj(*out0_p);
-        c0 += *out0_p * con;
-
-        con = conj(*out1_p);
-        c1 += *out1_p * con;
-
-        /* Calculate cross correlation */
-        corr = *out0_p * con;
-
-        R0 += creal(corr);
-        R1 += cimag(corr);
-
-        /* Go to next point in FFT output arrays */
-        ++out0_p;
-        ++out1_p;
+        /* Then calculate the factors for the cross correlation */
+        a0 = cabs(out0[k]);
+        a1 = cabs(out1[k]);
+        c0 += a0*a0;
+        c1 += a1*a1;
       }
+      c0 = sqrt(c0);
+      c1 = sqrt(c1);
 
-      /* Normalize cross correlation */
-      norm = sqrt(c0) * sqrt(c1);
+      /* Calculate cross correlation and normalize */
+      for (k=0; k<nf; k++)
+      {
+        corr = (out0[k] / c0) * (conj(out1[k]) / c1);
 
-      R[idx] += R0 / norm;
-      R[idx+1] += R1 / norm;
+        idx = 2*i;
+        R[idx] += creal(corr);
+        R[idx+1] += cimag(corr);
+      }
     }
+  }
 
-    /* Average over time */
-    R[idx] /= navg;
-    R[idx+1] /= navg;
+  /* Average over time */
+  for (i=0; i<nblocks*2; i++)
+  {
+    R[i] = R[i] / navg;
   }
 
   /* Free memory */
@@ -664,201 +650,6 @@ void crosscorrelation(char* filename, double* R, long blocksize, long navg, long
   free(buffer);
 }
 
-void crosscorrelation_inner(double *c, double *s, complex *fft0, complex *fft1, long nblocks, int nf)
-{
-  long i, j;
-  double c0, c1, R0, R1, norm;
-  complex corr, con, *fft0_p, *fft1_p;
-
-  fft0_p = fft0; fft1_p = fft1;
-  i = nblocks + 1;
-  while (--i)
-  {
-    /* Loop over frequencies */
-    c0 = 0; c1 = 0, R0 = 0; R1 = 0;
-    j = nf + 1;
-    while (--j)
-    {
-      /* First normalize FFT */
-      *fft0_p = *fft0_p / nf;
-      *fft1_p = *fft1_p / nf;
-
-      /* Then calculate normalization factors */
-//      con = conj(*fft0_p);
-//      c0 += *fft0_p * con;
-
-      con = conj(*fft1_p);
-//      c1 += *fft1_p * con;
-
-      /* Calculate cross correlation */
-      corr = *fft0_p * con;
-
-      R0 += creal(corr);
-      R1 += cimag(corr);
-
-      /* Go to next point in FFT fftput arrays */
-      ++fft0_p;
-      ++fft1_p;
-    }
-
-    /* Normalize cross correlation */
-//    norm = (c0 + c1) / 2;//sqrt(c0) * sqrt(c1);
-
-    *c += R0; // norm;
-    *s += R1; // norm;
-  }
-}
-
-void crosscorrelation_parallel(char* filename, double* R, int blocksize, long navg, long nblocks, int nread)
-{
-  FILE *fp;
-  char **buffer, *buffer_p;
-  int nf, nthreads, th_id;
-  long i, j;
-  long ii;
-  double **R_internal, **in, *in0_p, *in1_p, c, s;
-  fftw_complex *out0_p, *out1_p;
-  double window[blocksize];
-  fftw_complex mask[blocksize / 2 + 1];
-  fftw_complex **out;
-  fftw_plan p;
-
-  double wtime;
-  
-  wtime = omp_get_wtime();
-
-  /* Number of chunks */
-  const long nchunks = (nblocks * navg) / nread;
-
-  /* Number of samples in file */
-  const long nsamples = nblocks * navg * blocksize * 2;
-
-  /* Number of samples per processing chunk */
-  const long samples_per_chunk = nread * blocksize * 2;
-
-  /* Number of samples per processing chunk per channel */
-  const long samples_per_chunk_per_channel = nread * blocksize;
-
-  /* Number of frequencies in output */
-  nf = blocksize / 2 + 1;
-
-  /* Open file */
-  fp = fopen(filename, "rb");
-  if (fp == NULL)
-  {
-    printf("Error: could not open file!\n");
-    return;
-  }
-
-  #pragma omp parallel
-  {
-    #pragma omp master
-    {
-      nthreads = omp_get_num_threads();
-      printf("nthreads: %d\n", nthreads);
-    }
-  }
-
-  /* Allocate memory */
-  buffer = (char**) malloc(sizeof(char*) * nthreads);
-  in = (double**) malloc(sizeof(double*) * nthreads);
-  out = (fftw_complex**) malloc(sizeof(fftw_complex*) * nthreads);
-  R_internal = (double**) malloc(sizeof(double*) * nthreads);
-  for (i=0; i<nthreads; i++)
-  {
-    buffer[i] = (char*) malloc(sizeof(char) * nread * blocksize * 2);
-    in[i] = (double*) fftw_malloc(sizeof(double) * nread * blocksize * 2);
-    out[i] = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * nread * nf * 2);
-    R_internal[i] = (double*) malloc(sizeof(double) * nblocks * 2);
-  }
-
-  /* Zero out array buffers */
-  for (i=0; i<nthreads; i++)
-  {
-    for (j=0; j<nblocks*2; j++)
-    {
-      R_internal[i][j] = 0;
-    }
-  }
-
-  /* Create FFTW plan */
-  p = fftw_plan_many_dft_r2c(1, &blocksize, nread*2, in[0], NULL, 1, blocksize, out[0], NULL, 1, nf, FFTW_ESTIMATE | FFTW_DESTROY_INPUT);
-
-  #pragma omp parallel
-  {
-    #pragma omp for private(th_id, j, c, s, buffer_p, in0_p, in1_p, out0_p, out1_p) schedule(dynamic) 
-    for (i=0; i<nchunks; i++)
-    {
-      /* Get thread id */
-      th_id = omp_get_thread_num();
-
-      #pragma omp critical
-      {
-        /* Skip to correct position */
-        fseek(fp, i * samples_per_chunk * sizeof(char), SEEK_SET);
-
-        /* Read data */
-        fread(buffer[th_id], sizeof(char), samples_per_chunk, fp);
-      }
-
-      /* Put data into FFTW input array */
-
-      buffer_p = buffer[th_id]; in0_p = in[th_id]; in1_p = in[th_id] + samples_per_chunk_per_channel;
-
-      j = samples_per_chunk_per_channel + 1;
-      while (--j)
-      {
-        *in0_p = *buffer_p;
-        ++in0_p; ++buffer_p;
-        *in1_p = *buffer_p;
-        ++in1_p; ++buffer_p;
-      }
-
-      /* Execute FFTW plan */
-      fftw_execute_dft_r2c(p, in[th_id], out[th_id]);
-
-      /* Calculate cross correlation */
-      c = 0; s = 0;
-      crosscorrelation_inner(&c, &s, out[th_id], out[th_id] + nread * nf, nread, nf);
-
-      /* Add cross correlation to correct position in output array */
-      R_internal[th_id][2*(i * nread / navg)] += c;
-      R_internal[th_id][2*(i * nread / navg) + 1] += s;
-    }
-  }
-
-  #pragma omp parallel for private(j)
-  for (i=0; i<2*nblocks; i++)
-  {
-    for (j=0; j<nthreads; j++)
-    {
-      R[i] += R_internal[j][i];
-    }
-
-    R[i] /= navg;
-  }
-
-  /* Reclaim memory */
-  fftw_destroy_plan(p);
-
-  for (i=0; i<nthreads; i++)
-  {
-    free(buffer[i]);
-    fftw_free(in[i]);
-    fftw_free(out[i]);
-  }
-
-  free(buffer);
-  free(in);
-  free(out);
-
-  /* Close file */
-  close(fp);
-  
-  wtime = omp_get_wtime() - wtime;
-  printf("\nTotal process time is %f\n\n", wtime);
-}
-
 /**
  * \brief Calculate total power as a function of time (averaged over
  *        specified number of samples.
@@ -869,10 +660,10 @@ void crosscorrelation_parallel(char* filename, double* R, int blocksize, long na
  * \param blocksize number of samples to average for 1 datapoint in output
  * \param nblocks number of points in output
  */
-void sumsquared(char* filename, double* P, long blocksize, long nblocks)
+void sumsquared(char* filename, double* P, __int64 blocksize, __int64 nblocks)
 {
-  long i, j;
-  long n;
+  __int64 i, j;
+  __int64 n;
   double tmp;
   char *buffer, *b0, *b1;
   FILE *fp;
@@ -897,7 +688,7 @@ void sumsquared(char* filename, double* P, long blocksize, long nblocks)
   for (i=nblocks; i!=0; --i)
   {
     /* Feedback */
-    printf("processing block %ld of %ld\n", i, nblocks);
+    printf("processing block %d of %d\n", i, nblocks);
     
     /* Read data into buffer */
     fread(buffer, sizeof(char), n, fp);

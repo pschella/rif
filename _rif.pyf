@@ -87,19 +87,6 @@ interface
         integer*8 intent(in) :: nblocks
     end subroutine crosscorrelation
     
-    subroutine crosscorrelation_parallel(filename, R, blocksize, navg, nblocks, nread)
-        intent(c) crosscorrelation_parallel
-        intent(c)
-
-        double precision intent(out) :: R(nblocks*2)
-
-        character*(*) intent(in) :: filename
-        integer intent(in) :: blocksize 
-        integer*8 intent(in) :: navg
-        integer*8 intent(in) :: nblocks
-        integer intent(in) :: nread
-    end subroutine crosscorrelation_parallel
-    
     subroutine sumsquared(filename, P, blocksize, nblocks)
         intent(c) sumsquared
         intent(c)
