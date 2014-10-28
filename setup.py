@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-def configuration(parent_package='', top_path=None):
+def configuration(parent_package='rif', top_path=None):
     from numpy.distutils.misc_util import Configuration
     config = Configuration('', parent_package,top_path)
 
